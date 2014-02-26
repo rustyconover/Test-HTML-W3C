@@ -2,7 +2,7 @@ package Test::HTML::W3C;
 
 use strict;
 use vars qw($VERSION @EXPORT);
-$VERSION = "0.04"; 
+$VERSION = "0.05"; 
 
 =head1 NAME
 
@@ -61,6 +61,9 @@ use base qw(Test::Builder::Module);
 my $v = WebService::Validator::HTML::W3C->new();
 my $not_checked = 1;
 my $show_detail = 0;
+my $show_source = 0;
+my $source_window_size = 10;
+my $last_markup;
 
 sub import_extra {
     my ($class, $list) = @_;
@@ -69,9 +72,13 @@ sub import_extra {
     while( $idx <= $#{$list} ) {
         my $item = $list->[$idx];
 
-        if( defined $item and $item eq 'show_detail' ) {
-            $show_detail = 1;
-            $v = WebService::Validator::HTML::W3C->new(detailed => 1);
+        if( defined $item ) {
+            if($item eq 'show_detail' ) {
+                $show_detail = 1;
+                $v = WebService::Validator::HTML::W3C->new(detailed => 1);
+            } elsif( $item eq 'show_source' ) {
+                $show_source = 1;
+            }
         } else {
             push @other, $item;
         }
@@ -132,6 +139,9 @@ B<Returns:> None.
 sub is_valid_markup {
     _check_plan() if $not_checked;
     my ($markup, $message) = @_;
+    if ($show_source) {
+        $last_markup = $markup;
+    }
     if ($v->validate_markup($markup)) {
         _result($v, $message);
     } else {
@@ -154,6 +164,12 @@ B<Returns:> None.
 sub is_valid_file {
     my ($file, $message) = @_;
     _check_plan() if $not_checked;
+    if ($show_source) {
+        $last_markup = undef;
+        if(-r $file) {
+            $last_markup = File::Slurp::read_file($file);
+        }
+    }
     if ($v->validate_file($file)) {
         _result($v, $message);
     } else {
@@ -179,6 +195,7 @@ B<Returns:> None.
 sub is_valid {
     my ($uri, $message) = @_;
     _check_plan() if $not_checked;
+    $last_markup = undef;
     if ($v->validate($uri)) {
        _result($v, $message);
     } else {
@@ -227,7 +244,20 @@ sub diag_html {
         my @errs = $v->errors();
         my $e;
         foreach my $error ( @{$v->errors()} ) {
-             $e .= sprintf("%s at line %d\n", $error->msg, $error->line);
+             $e .= sprintf("%s at line %d col %d\n", $error->msg, $error->line, $error->col);
+
+             if (defined($last_markup)) {
+                 my @lines = split /\n/, $last_markup;
+                 my $min = $error->line - int($source_window_size/2);
+                 if($min < 0) {
+                     $min = 0;
+                 }
+                 my $max = $error->line + int($source_window_size/2);
+                 if($max > scalar(@lines)-1) {
+                     $max = scalar(@lines)-1;
+                 }
+                 $e .= "Source:\n" . join("\n", map { sprintf("%d - %s", ++$min, $_) } @lines[$min..$max]) . "\n";
+             }
         }
         $tb->diag($e);
     } else {

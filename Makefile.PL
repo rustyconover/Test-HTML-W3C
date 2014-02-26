@@ -15,5 +15,6 @@ WriteMakefile(
     PREREQ_PM     => { 
                        "WebService::Validator::HTML::W3C" => 0.1,
                        "Test::Builder::Module" => 0,
+                       "XML::XPath" => 0
                      },
 );

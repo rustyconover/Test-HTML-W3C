@@ -1,4 +1,6 @@
-$Id: Changes 4376 2011-08-20 04:41:22Z victor $
+0.05 Wed Feb 26 09:28:11 EST 2014
+    - Added show_source option to show source around validation errors.
+    - Added dependency on XML::XPath
 
 0.04 Saturday 20th Aug 2011
     - Improved POD. Applied patch provided by Nicholas Bamber.
